@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useThemeStore } from "@/renderer/stores";
+import { cn } from "@/renderer/utils/tailwind-utils";
 // Official wordmark from https://www.johnsonelectric.com/static/media/logo.0661c1b0.svg
-// @ts-expect-error: webpack asset/source returns SVG markup string
 import jeLogoSvg from "../../../../public/images/brand/je-logo.svg";
 
 type JeLogoProps = {
@@ -40,18 +40,24 @@ export const JeLogo: React.FC<JeLogoProps> = ({
 
   const markup = useMemo(() => {
     // Official fills: text #231f20, accent #f58220 — invert text only for dark UI
-    const svg = isDark
+    let svg = isDark
       ? String(jeLogoSvg).replace(/#231f20/gi, "#ffffff")
       : String(jeLogoSvg);
+    // Also rewrite CSS class fills (logo uses .cls-1 / .cls-2)
+    if (isDark) {
+      svg = svg
+        .replace(/\.cls-1\{fill:#231f20;?\}/gi, ".cls-1{fill:#ffffff;}")
+        .replace(/fill:#231f20/gi, "fill:#ffffff");
+    }
     return svg.replace(
       "<svg ",
-      `<svg role="img" aria-label="${title}" class="${className}" `,
+      `<svg role="img" aria-label="${title}" style="height:100%;width:auto;display:block;" `,
     );
-  }, [className, isDark, title]);
+  }, [isDark, title]);
 
   return (
     <span
-      className="inline-flex items-center [&_svg]:h-full [&_svg]:w-auto"
+      className={cn("inline-flex items-center shrink-0", className)}
       dangerouslySetInnerHTML={{ __html: markup }}
     />
   );

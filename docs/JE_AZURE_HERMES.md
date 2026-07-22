@@ -1,21 +1,24 @@
 # JE MCP Router — Azure + Hermes (end-to-end)
 
-This guide wires **JE MCP Router** (mcp-router) as the centralized MCP aggregator for **Hermes / NemoHermes** on an Azure Windows VM (for example `intern.eastasia.cloudapp.azure.com`).
+This guide wires **JE MCP Router** as the centralized MCP aggregator for **Hermes / NemoHermes**. Excel/PPT MCP servers run on an Azure Windows VM; Hermes on a Mac (or elsewhere) connects over HTTP with a Bearer token.
 
 ## Architecture
 
 ```text
-Cursor / Claude (local) ──stdio──► npx @mcp_router/cli connect ──► 127.0.0.1:3282/mcp
-                                                                    │
-Hermes (same or remote host) ──stdio──► cli connect --url PUBLIC_URL ┘
-                                                                    │
-                                                         JE MCP Router (Electron)
-                                                         Aggregates configured MCP servers
+Hermes / NemoHermes (Mac)
+  HTTP POST + Authorization: Bearer <token>
+       │
+       ▼
+  http://<azure-host>:3282/mcp
+       │
+       ▼
+JE MCP Router (Electron on Azure Windows VM)
+  Aggregates configured MCP servers (Excel, PPT, …)
 ```
 
-- Local clients (Cursor, Claude, VS Code) keep using `localhost:3282`.
-- Hermes uses the **public gateway URL** when configured in Settings → Remote MCP Access.
-- Auth: Bearer token (`MCPR_TOKEN`) issued by JE MCP Router (Apps → Hermes → Add MCP Config).
+- Auth: Bearer token issued by JE MCP Router (**Apps → Hermes → Add MCP config** or **Client setup**).
+- Hermes uses **native HTTP MCP** (`url` + `headers.Authorization`). Do **not** use `@mcp_router/cli` for Azure (npm 0.2.0 ignores `--url`).
+- Local Cursor/Claude on the same machine can still use localhost if desired.
 
 ## Deploy on a small Azure VM (4 GB) — recommended
 
@@ -28,13 +31,11 @@ Repo: https://github.com/meghamshb2006/mcprouter
 Workflow: **Windows Azure Package** (`.github/workflows/windows-azure-package.yml`)
 
 - Runs on push to `main` / `je/hermes-branding`, or manually via **Actions → Windows Azure Package → Run workflow**
-- Artifact name: `je-mcp-router-windows-x64` (Squirrel setup / ZIP under `apps/electron/out/make`)
+- Artifact name: `je-mcp-router-windows-x64`
 
 ### 2) Download onto the Azure VM (RDP)
 
 In the GitHub run → **Artifacts** → download `je-mcp-router-windows-x64` → copy ZIP to the VM → extract.
-
-Or with `gh` on a machine that can reach GitHub:
 
 ```powershell
 gh run download --repo meghamshb2006/mcprouter -n je-mcp-router-windows-x64 -D C:\Users\azureuser\je-mcp-router-build
@@ -43,38 +44,26 @@ gh run download --repo meghamshb2006/mcprouter -n je-mcp-router-windows-x64 -D C
 ### 3) Install / run
 
 - Prefer the **Squirrel Setup `.exe`** if present → install → launch **JE MCP Router**
-- Or run the packaged app from the extracted ZIP / `out` folder
+- Electron needs an interactive RDP desktop session while the gateway is running
 
-Electron still needs an interactive RDP desktop session while the gateway is running.
+## Enable enterprise gateway (in the app)
 
-## Dev setup (8 GB+ VM only)
+1. Open **Settings → JE Enterprise Gateway**.
+2. Enable **Enable enterprise gateway**.
+3. Listen address `0.0.0.0`, service port `3282` (or your choice).
+4. Set **Client endpoint URL**, e.g.  
+   `http://intern.eastasia.cloudapp.azure.com:3282/mcp`  
+   (use `https://` only if TLS is terminated in front of the app).
+5. **Save** → **Restart now**.
+6. Add Excel (and later PPT) MCP servers; power them **LIVE**.
+7. Open **Apps → Hermes → Add MCP config** (writes HTTP YAML + token into `~/.hermes/config.yaml` on the machine where Hermes lives — usually the Mac).  
+   If Hermes is on the Mac, copy the Client setup YAML there, or run Add MCP config on the Mac with the same token flow.
 
-```powershell
-corepack enable
-corepack prepare pnpm@10.22.0 --activate
-
-cd C:\Users\azureuser
-git clone https://github.com/meghamshb2006/mcprouter.git
-cd mcprouter
-git checkout je/hermes-branding
-pnpm install
-pnpm dev
-```
-
-## Enable remote access (in the app)
-
-1. Open **Settings → Remote MCP Access (JE / Azure)**.
-2. Enable **Allow remote MCP clients**.
-3. Bind host `0.0.0.0`, port `3282` (or your choice).
-4. Set **Public gateway URL**, e.g.  
-   `https://intern.eastasia.cloudapp.azure.com:3282/mcp`  
-   (use `http://` if TLS is not terminated yet).
-5. Save → **restart the app**.
-6. Open **Apps → Hermes → Add MCP Config** (rewrites `~/.hermes/config.yaml` with `--url` + token).
+> Note: **Add MCP config** on the Azure VM writes `C:\Users\…\.hermes\config.yaml` on the VM. For Mac Hermes, use **Client setup** and paste into `~/.hermes/config.yaml` on the Mac, or create the token on the VM and paste the snippet onto the Mac.
 
 ## Azure networking
 
-- NSG / firewall: allow inbound TCP on the MCP port (default **3282**) from Hermes clients only.
+- NSG / Windows Firewall: allow inbound TCP on the MCP port (default **3282**) from Hermes clients only.
 - Prefer private VNet / VPN; if public, treat the token as a secret and rotate it.
 
 ## Env overrides (optional)
@@ -84,8 +73,6 @@ pnpm dev
 | `MCPR_HTTP_HOST` | Bind host (overrides settings) |
 | `MCPR_HTTP_PORT` | Bind port |
 | `MCPR_GATEWAY_PUBLIC_URL` | Public URL written into Hermes YAML |
-| `MCPR_URL` | CLI connect default base URL |
-| `MCPR_TOKEN` | Bearer token (required by clients) |
 
 ## Smoke checks
 
@@ -97,31 +84,30 @@ Invoke-RestMethod http://127.0.0.1:3282/health
 $headers = @{ Authorization = "Bearer $env:MCPR_TOKEN" }
 Invoke-RestMethod http://127.0.0.1:3282/mcp/status -Headers $headers
 
-# From another host (replace host)
+# From another host
 Invoke-RestMethod http://intern.eastasia.cloudapp.azure.com:3282/health
 ```
 
 Or run `scripts/smoke-je-gateway.ps1`.
 
-## Hermes config shape
+## Hermes config shape (canonical)
 
-After **Add MCP Config**, `~/.hermes/config.yaml` should contain something like:
+After **Add MCP config** / **Client setup**, `~/.hermes/config.yaml` should contain:
 
 ```yaml
 mcp_servers:
   mcp-router:
-    command: "npx"
-    args: ["-y", "@mcp_router/cli@latest", "connect", "--url", "http://HOST:3282/mcp"]
-    env:
-      MCPR_TOKEN: "<token from JE MCP Router>"
-      MCPR_URL: "http://HOST:3282/mcp"
+    url: "http://HOST:3282/mcp"
+    headers:
+      Authorization: "Bearer <token from JE MCP Router>"
 ```
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---|---|
-| `pnpm` not recognized | `corepack enable` then `corepack prepare pnpm@10.22.0 --activate` |
-| Health works on VM but not remotely | Open NSG + Windows Firewall for the port; confirm remote access enabled + restart |
-| Hermes tools empty | Re-run Apps → Hermes → Add MCP Config; confirm token and servers are enabled |
-| Electron won't start | Need RDP interactive session; headless servers cannot show the UI |
+| Health works on VM but not remotely | Open NSG + Windows Firewall; confirm enterprise gateway enabled + restart |
+| Hermes tools empty | Re-issue token; enable Excel on Server access; confirm LIVE; paste HTTP YAML on Mac |
+| Token not found | Create a fresh token after reinstall |
+| Electron won't start | Need RDP interactive session |
+| Connection refused | App still bound to `127.0.0.1` — enable gateway, set `0.0.0.0`, restart |

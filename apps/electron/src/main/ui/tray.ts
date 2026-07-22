@@ -37,12 +37,12 @@ export function createTray(serverManager: MCPServerManager): Tray | null {
     const icon = getTrayIcon();
 
     tray = new Tray(icon);
-    tray.setToolTip("MCP Router");
+    tray.setToolTip("JE MCP Router");
   } catch (error) {
     console.error("Failed to create tray with icon, using default:", error);
     // As a last resort, use a system standard icon
     tray = new Tray(app.getPath("exe"));
-    tray.setToolTip("MCP Router");
+    tray.setToolTip("JE MCP Router");
   }
 
   // Set tray context menu
@@ -103,7 +103,7 @@ export function updateTrayContextMenu(serverManager: MCPServerManager): void {
 
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: "MCP Router",
+      label: "JE MCP Router",
       click: () => {
         // Show the app in the Dock on macOS when clicked from context menu
         if (process.platform === "darwin" && app.dock) {
