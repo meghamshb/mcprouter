@@ -17,24 +17,48 @@ Hermes (same or remote host) ──stdio──► cli connect --url PUBLIC_URL �
 - Hermes uses the **public gateway URL** when configured in Settings → Remote MCP Access.
 - Auth: Bearer token (`MCPR_TOKEN`) issued by JE MCP Router (Apps → Hermes → Add MCP Config).
 
-## One-time VM setup (Windows)
+## Deploy on a small Azure VM (4 GB) — recommended
+
+Do **not** run `pnpm dev` on a 4 GB VM (webpack OOMs). Build the Windows installer in GitHub Actions, then install/run the packaged app on the VM.
+
+### 1) Build on GitHub Actions
+
+Repo: https://github.com/meghamshb2006/mcprouter  
+
+Workflow: **Windows Azure Package** (`.github/workflows/windows-azure-package.yml`)
+
+- Runs on push to `main` / `je/hermes-branding`, or manually via **Actions → Windows Azure Package → Run workflow**
+- Artifact name: `je-mcp-router-windows-x64` (Squirrel setup / ZIP under `apps/electron/out/make`)
+
+### 2) Download onto the Azure VM (RDP)
+
+In the GitHub run → **Artifacts** → download `je-mcp-router-windows-x64` → copy ZIP to the VM → extract.
+
+Or with `gh` on a machine that can reach GitHub:
 
 ```powershell
-# Node 20 LTS + Git, then:
+gh run download --repo meghamshb2006/mcprouter -n je-mcp-router-windows-x64 -D C:\Users\azureuser\je-mcp-router-build
+```
+
+### 3) Install / run
+
+- Prefer the **Squirrel Setup `.exe`** if present → install → launch **JE MCP Router**
+- Or run the packaged app from the extracted ZIP / `out` folder
+
+Electron still needs an interactive RDP desktop session while the gateway is running.
+
+## Dev setup (8 GB+ VM only)
+
+```powershell
 corepack enable
 corepack prepare pnpm@10.22.0 --activate
 
 cd C:\Users\azureuser
-git clone https://github.com/meghamshb2006/mcpcontrol.git mcp-router-je
-cd mcp-router-je
+git clone https://github.com/meghamshb2006/mcprouter.git
+cd mcprouter
 git checkout je/hermes-branding
 pnpm install
-```
-
-Electron needs a desktop session (RDP). Then:
-
-```powershell
-pnpm --filter @mcp_router/electron dev
+pnpm dev
 ```
 
 ## Enable remote access (in the app)
