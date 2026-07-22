@@ -49,15 +49,15 @@ const config: ForgeConfig = {
   },
   makers: [
     new MakerSquirrel({
-      name: "MCP-Router",
-      authors: "fjm2u",
+      name: "JE-MCP-Router",
+      authors: "Johnson Electric",
       description:
-        "Effortlessly manage your MCP servers with the MCP Router. MCP Router provides a user-friendly interface for managing MCP servers, making it easier than ever to work with the MCP.",
+        "Johnson Electric MCP Router — centralized MCP gateway for Cursor, Claude, Hermes / NemoHermes, and other MCP clients.",
       setupIcon: "./public/images/icon/icon.ico",
     }),
     new MakerDMG(
       {
-        name: "MCP-Router",
+        name: "JE-MCP-Router",
         format: "ULFO",
         icon: "./public/images/icon/icon.icns",
       },
