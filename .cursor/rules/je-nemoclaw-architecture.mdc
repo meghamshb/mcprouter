@@ -1,0 +1,11 @@
+---
+description: Central OpenShell on VM + remote JE MCP; no user gateway access
+alwaysApply: true
+---
+
+# JE enterprise architecture (target)
+
+- Do **not** install NemoClaw/OpenShell unless the user explicitly asks.
+- **Ideal:** OpenShell **gateway hosted centrally on the VM** (remote); users only attach CLI/channels; multi-sandbox on that host (Docker) or K8s; IT approves/denies egress on OpenShell dashboard; JE MCP Router is separate remote MCP tool plane (Excel/PPT); users never access JE Settings/tokens.
+- OpenShell supports `openshell gateway add http://HOST:PORT --remote`. Needs Linux+Docker (or WSL2/K8s) — not bare Windows as first-class host.
+- OpenShell ≠ JE MCP Router. Full notes: `AGENTS.md`.
